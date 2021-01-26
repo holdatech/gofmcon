@@ -1,4 +1,4 @@
-module github.com/amanbolat/gofmcon
+module github.com/holdatech/gofmcon
 
 go 1.14
 
