@@ -1,6 +1,7 @@
 package gofmcon
 
 import (
+	"bytes"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
@@ -213,6 +214,34 @@ type RelatedSet struct {
 	Records []*Record `xml:"record"`
 }
 
+var (
+	sepDecimals  = []byte{'.', ',', '\''}
+	sepThousands = []byte{' ', '.', ',', '\''}
+)
+
+// normalizeNumber normalizes regional floating point numbers like "12,34" to be ParseFloat compatible
+func normalizeNumber(s string) string {
+	var sep bool
+	b := make([]byte, len(s))
+	offset := 0
+	for i := len(s) - 1; i >= 0; i-- {
+		x := s[i]
+		if !sep && bytes.IndexByte(sepDecimals, x) != -1 {
+			sep = true
+			b[i+offset] = '.'
+			continue
+		}
+		if bytes.IndexByte(sepThousands, x) != -1 {
+			offset++
+			continue
+		}
+
+		b[i+offset] = x
+	}
+
+	return string(b[offset:])
+}
+
 func (r *Record) makeFieldsMap(isNested bool, fieldsDefinitions FieldsDefinitions) {
 	if r.fieldsMap == nil {
 		r.fieldsMap = map[string]interface{}{}
@@ -224,6 +253,8 @@ func (r *Record) makeFieldsMap(isNested bool, fieldsDefinitions FieldsDefinition
 		for _, val := range f.Data {
 			switch fieldsDefinitions.getType(f.Name) {
 			case TypeNumber:
+				// normalize string first
+				val = normalizeNumber(val)
 				number, err := strconv.ParseFloat(val, 64)
 				if err != nil {
 					dataArr = append(dataArr, nil)
